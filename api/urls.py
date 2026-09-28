@@ -1,10 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegisterView, ProfileView, top_up_balance, ProductViewSet
+from .views import RegisterView, ProfileView, top_up_balance, ProductViewSet, CartViewSet
 
 router = DefaultRouter()
 router.register(r'products', ProductViewSet)
+router.register(r'cart', CartViewSet, basename='cart')
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
