@@ -3,10 +3,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
 from decimal import Decimal, InvalidOperation
-from .models import Product, CartItem
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from .models import Product, CartItem, Order
 from .serializers import (
-    UserSerializer, RegisterSerializer, ProductSerializer, CartItemSerializer
+    UserSerializer, RegisterSerializer, ProductSerializer,
+    CartItemSerializer, OrderSerializer
 )
+from .services import create_order_from_cart
+
 
 User = get_user_model()
 
@@ -78,3 +82,20 @@ class CartViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+class OrderViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post'] # Только просмотр своих заказов и создание нового
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).prefetch_related('items__product')
+
+    def create(self, request, *args, **kwargs):
+        try:
+            order = create_order_from_cart(request.user)
+            serializer = self.get_serializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except DRFValidationError as e:
+            error_detail = e.detail[0] if isinstance(e.detail, list) else e.detail
+            return Response({'error': error_detail}, status=status.HTTP_400_BAD_REQUEST)
